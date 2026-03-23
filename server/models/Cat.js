@@ -1,8 +1,7 @@
 const mongoose = require('mongoose');
 
-let catModel;
 
-const Catschema = new mongoose.Schema({
+const CatSchema = new mongoose.Schema({
     name : {
         type: String,
         required: true,
@@ -21,5 +20,5 @@ const Catschema = new mongoose.Schema({
 
 });
 
-catModel = mongoose.model('Cat', Catschema);
-module.exports = catModel;
+const CatModel = mongoose.model('Cat', CatSchema);
+module.exports = CatModel;

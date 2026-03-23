@@ -1,35 +1,56 @@
-const Cat = require('./Cat.js');
+//pull in our models
+const models = require('../models');
+const { Cat } = models;
 
-// index.js gets automatically pulled when 
-// a folder is required. We use this to our 
-// advantage to define an API for this package.
-// We could use it to pull as many files as 
-// necessary and send it back as one API
-// That way the user only has to implement one 
-// require for all of the files in this folder 
-// we want them to use
+const hostIndex = async (req, res) => {
+    let name = 'unknown';
 
-const newCat = async (req, res) => {
+    try {
+        const doc = await Cat.findOne({}, {}, {
+            sort: { 'createdDate': 'descending' },
+        }).lean().exec();
+    } catch (err) {
+        console.log(err);
+        return res.status(500).json({ error: 'An error occurred while fetching data' });
+    }
+    name = doc ? doc.name : 'No cats found';
+    res.render('index', {
+        currentName: name,
+        title: 'Home',
+        pageName: 'Home Page',
+    });
+};
 
-}
+const hostPage1 = async (req, res) => {
+    try{
+        const docs = await Cat.find({}).lean().exec();
+        return res.render('page1', {
+            cats: docs,
+        });
+    } catch (err) { 
+        console.log(err);
+        return res.status(500).json({ error: 'Failed to find cats'});
+    }
+};
 
+const hostPage2 = (req, res) => {
+    res.render('page2');
+};
 
+const hostPage3 = (req, res) => {
+    res.render('page3');
+};
 
+const getName = (req, res) => {
+    if (!req.query.name) {
+        return res.status(400).json({ error: 'Name is required to perform a search' });
+    }
+    return res.json({ name: req.query.name });
+};
 
-//Missing stuff here
-
-
-
-
-
-
-
-
-
-
-const setName = (req, res) => {
-    if (!req.body.firstname || !req.body.lastname) {
-        return res.status(400).json({ error: 'firstname and lastname are both required' });
+const setName = async(req, res) => {
+    if (!req.body.firstname || !req.body.lastname || !req.body.beds) {
+        return res.status(400).json({ error: 'firstname, lastname, and beds are all required' });
     }
 
     const catData = {
@@ -38,7 +59,6 @@ const setName = (req, res) => {
     };
 
     const newCat = new Cat(catData);
-
     try {
         await newCat.save();
         return res.status(201).json({
@@ -46,18 +66,66 @@ const setName = (req, res) => {
             beds: newCat.bedsOwned,
         })
     } catch (err) {
-        return res.status(500).json({ error: 'An error occurred while saving the cat' });
+        console.log(err);
+        return res.status(500).
+        json({ error: 'An error occurred while saving the cat' });
     }
 };
 
-const searchName = (req, res) => {
+const searchName = async (req, res) => {
     if (!req.query.name) {
         return res.status(400).json({ error: 'Name is required to perform a search' });
+    }
+
+    try {
+        const doc = await Cat.findOne({ name: req.query.name }).lean().exec();
+        if (!doc) {
+            return res.status(404).json({ error: 'No cats found with that name' });
+        }
+        return res.json({ name: doc.name, beds: doc.bedsOwned });
+
+    } catch (err) {
+        console.log(err);
+        return res.status(500).json({ error: 'An error occurred while searching for the cat' });
     }
 };
 
 const updateLast = (req, res) => {
+    const updatePromise = Cat.findOneAndUpdate({}, 
+        {$inc: {bedsOwned: 1}}, 
+        { returnDocument: 'after', 
+        sort: { 'createdDate': 'descending' }
+    }).lean().exec();
 
+    updatePromise.then(doc => {
+        return res.json({
+            name: doc.name,
+            beds: doc.bedsOwned,
+        });
+    });
+
+    updatePromise.catch(err => {
+        console.log(err);
+        return res.status(500).json({ error: 'Something went wrong' });
+    });
+};
+
+const notFound = (req, res) => {
+    res.status(404).render('notFound', {
+        page: req.url,
+    });
+};
+
+module.exports = {
+    index: hostIndex,
+    page1: hostPage1,
+    page2: hostPage2,
+    page3: hostPage3,
+    getName,
+    setName,
+    searchName,
+    updateLast,
+    notFound,
 };
 
 
